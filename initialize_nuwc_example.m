@@ -1,50 +1,87 @@
 function [  ] = initialize_nuwc_example(  )
 
-thisFilesFullName = mfilename( 'fullpath' );
+set_up_matlab_path( );
 
-thisFilesAbsolutePath = fileparts( thisFilesFullName );
+set_up_simulink_work_directories( );
 
-%% Set up the MATLAB path:
-directoriesToAddToMatlabPathCellStr = ...
-	{ ...
-	thisFilesAbsolutePath, ...
-	fullfile( thisFilesAbsolutePath, 'models' ), ...
-	fullfile( thisFilesAbsolutePath, 'data_dictionaries' ) ...	
-	};
-
-cellfun( @addpath, directoriesToAddToMatlabPathCellStr );
-
-
-%% Set up the simulation cache and code-generation directories:
-simCacheDirectory = ...
-	fullfile( thisFilesAbsolutePath, 'simulation_cache' );
-
-% The "createDir" argument is needed here because Git doesn't
-% track empty directories without explicitly adding them. Since
-% the "work" directory is likely to be purged prior to
-% committing it to the repository, Git might not track it, and
-% the directory might not exist for users that check out the
-% repository.
-Simulink.fileGenControl( 'set', ...
-	'CacheFolder',      simCacheDirectory, ...
-	'keepPreviousPath', true, ...
-	'createDir',        true );
-
-codeGenDirectory  = ...
-	fullfile( thisFilesAbsolutePath, 'generated_code' );
-
-% The "createDir" argument is needed here because Git doesn't
-% track empty directories without explicitly adding them. Since
-% the "work" directory is likely to be purged prior to
-% committing it to the repository, Git might not track it, and
-% the directory might not exist for users that check out the
-% repository.
-Simulink.fileGenControl( 'set', ...
-	'CodeGenFolder',    codeGenDirectory, ...
-	'keepPreviousPath', true, ...
-	'createDir',        true );
+generate_c_code_from_matlab( );
 
 return;
 
 end
 
+function [ ] = generate_c_code_from_matlab( )
+
+originalDirectory = pwd( );
+
+thisFilesFullName = mfilename( 'fullpath' );
+
+thisFilesAbsolutePath = fileparts( thisFilesFullName );
+
+generatedCodeDirectoryAbsolutePath = ...
+	fullfile( thisFilesAbsolutePath, 'generated_code' );
+
+codeGenerationException = [ ];
+	
+codeGenerationConfigurationObject = coder.config( 'lib' ); %#ok<NASGU> This variable is used later, but in command form, not function form.
+
+cd( generatedCodeDirectoryAbsolutePath );
+
+try
+
+
+codegen -config codeGenerationConfigurationObject main_entry_point -args 2.0;
+
+catch codeGenerationException
+	% We'll rethrow this later.
+end
+
+cd( originalDirectory );
+
+if( isempty( codeGenerationException ) )
+	% No problems occurred.
+else
+	rethrow( codeGenerationException );
+end
+
+return;
+end
+
+function [ ] = set_up_matlab_path( )
+
+thisFilesFullName = mfilename( 'fullpath' );
+
+thisFilesAbsolutePath = fileparts( thisFilesFullName );
+
+directoriesToAddToMatlabPath = ...
+	{ ...
+	thisFilesAbsolutePath, ...
+	fullfile( thisFilesAbsolutePath, 'models' ), ...
+	fullfile( thisFilesAbsolutePath, 'data_dictionaries' ), ...
+	fullfile( thisFilesAbsolutePath, 'matlab_code' ) ...
+	};
+
+cellfun( @addpath, directoriesToAddToMatlabPath );
+
+return;
+
+end
+
+function [ ] = set_up_simulink_work_directories( )
+
+thisFilesFullName = mfilename( 'fullpath' );
+
+thisFilesAbsolutePath = fileparts( thisFilesFullName );
+
+simulationCacheDirectoryAbsolutePath = ...
+	fullfile( thisFilesAbsolutePath, 'simulation_cache' );
+
+Simulink.fileGenControl('set', 'CacheFolder', simulationCacheDirectoryAbsolutePath, 'createDir', true );
+
+generatedCodeDirectoryAbsolutePath = ...
+	fullfile( thisFilesAbsolutePath, 'generated_code' );
+
+Simulink.fileGenControl('set', 'CodeGenFolder', generatedCodeDirectoryAbsolutePath, 'createDir', true );
+
+return;
+end
