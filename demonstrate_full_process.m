@@ -67,7 +67,7 @@ thisFilesFullName = mfilename( 'fullpath' );
 thisFilesAbsolutePath = fileparts( thisFilesFullName );
 
 generatedCodeDirectoryAbsolutePath = ...
-	fullfile( thisFilesAbsolutePath, '..', 'generated_code' );
+	fullfile( thisFilesAbsolutePath, 'generated_code' );
 
 codeGenerationException = [ ];
 	
